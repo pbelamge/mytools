@@ -34,5 +34,5 @@ export ARMADA_IMAGE="quay.io/attcomdev/armada:latest"
 export DRYDOCK_IMAGE="quay.io/attcomdev/drydock:latest"
 export GENESIS_NODE_NAME=${NODE_NAME:-"node1"}
 export MASTER_NODE_NAME="node2"
-export NAMESERVER_1="135.75.88.250"
-export NAMESERVER_2="135.75.144.60"
+export NAMESERVER_1=""
+export NAMESERVER_2=""
