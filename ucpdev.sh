@@ -27,10 +27,6 @@ function exit_on_error {
 function initEnv {
     info "setting required ENV vars"
 
-    # cwd/pwd/configs
-    export CONFIGS_DIR="$(pwd)/configs"
-    export KUBE_CONFIGS_DIR="$HOME/.kube"
-
     # Setup environmental variables
     # with stable defaults
 
@@ -279,9 +275,7 @@ function runGenesis {
     generateArtifacts
 
     # Do Promenade genesis process
-    cd $CONFIGS_DIR
-    . ${UP_SCRIPT_FILE} || exit_on_error "ucpdev: genesis process failed." $?
-    cd ..
+    . $CONFIGS_DIR/genesis.sh || exit_on_error "ucpdev: genesis process failed." $?
 
     # Setup kubeconfig
     mkdir $KUBE_CONFIG_DIR
@@ -325,9 +319,9 @@ fi
 
 info "===== ~: $BASH_SOURCE :~ ====="
 
-#upgradeUbuntu
+upgradeUbuntu
 
-#setHostsInfo
+setHostsInfo
 
 initEnv
 
