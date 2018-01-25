@@ -266,13 +266,25 @@ function prepareConfigs {
 function runGenesis {
     info "running genesis"
 
-    prepareConfigs
+    if [[ $FORCE_DEPLOY || $SKIP_CONFIG_PREPARE -ne 1 ]]
+    then
+        prepareConfigs
+    fi
 
-    setupDocker
+    if [[ $FORCE_DEPLOY || $SKIP_DOCKER -ne 1 ]]
+    then
+        setupDocker
+    fi
 
-    generateCerts
+    if [[ $FORCE_DEPLOY || $SKIP_CERTS -ne 1 ]]
+    then
+        generateCerts
+    fi
 
-    generateArtifacts
+    if [[ $FORCE_DEPLOY || $SKIP_ARTIFACTS -ne 1 ]]
+    then
+        generateArtifacts
+    fi
 
     # Do Promenade genesis process
     . $CONFIGS_DIR/genesis.sh || exit_on_error "ucpdev: genesis process failed." $?
@@ -319,17 +331,29 @@ fi
 
 info "===== ~: $BASH_SOURCE :~ ====="
 
-upgradeUbuntu
+if [[ $FORCE_DEPLOY || $SKIP_OS_UPGRADE -ne 1 ]]
+then
+    upgradeUbuntu
+fi
 
-setHostsInfo
+if [[ $FORCE_DEPLOY || $SKIP_ETC_HOSTS -ne 1 ]]
+then
+    setHostsInfo
+fi
 
 initEnv
 
 validateEnv
 
-runGenesis
+if [[ $FORCE_DEPLOY || $SKIP_GENESIS -ne 1 ]]
+then
+    runGenesis
+fi
 
-initHelm
+if [[ $FORCE_DEPLOY || $SKIP_HELM_INIT -ne 1 ]]
+then
+    initHelm
+fi
 
 deployUcp
 
