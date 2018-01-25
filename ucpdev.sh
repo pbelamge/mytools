@@ -29,6 +29,7 @@ function initEnv {
 
     # cwd/pwd/configs
     export CONFIGS_DIR="$(pwd)/configs"
+    export KUBE_CONFIGS_DIR="$HOME/.kube"
 
     # Setup environmental variables
     # with stable defaults
@@ -205,12 +206,12 @@ function generateCerts {
     then
         docker run -e "http_proxy=$PROXY_ADDRESS" -e "https_proxy=$PROXY_ADDRESS" \
                    --rm -t -w /target \
-                   -v $(pwd)/$CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade generate-certs \
+                   -v $CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade generate-certs \
                    -o /target $(ls $CONFIGS_DIR) || exit_on_error "ucpdev: Promenade certificate generation failed." $?
     else
         docker run \
                    --rm -t -w /target \
-                   -v $(pwd)/$CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade generate-certs \
+                   -v $CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade generate-certs \
                    -o /target $(ls $CONFIGS_DIR) || exit_on_error "ucpdev: Promenade certificate generation failed." $?
     fi
 }
@@ -223,19 +224,21 @@ function generateArtifacts {
     then
         docker run -e "http_proxy=$PROXY_ADDRESS" -e "https_proxy=$PROXY_ADDRESS" \
                    --rm -t -w /target \
-                   -v $(pwd)/$CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade build-all \
+                   -v $CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade build-all \
                    -o /target \
                    --validators $(ls $CONFIGS_DIR) || exit_on_error "ucpdev: Promenade artifacts generation failed." $?
     else
         docker run \
                --rm -t -w /target \
-               -v $(pwd)/$CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade build-all \
+               -v $CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade build-all \
                -o /target \
                --validators $(ls $CONFIGS_DIR) || exit_on_error "ucpdev: Promenade artifacts generation failed." $?
     fi
 }
 
-function runGenesis {
+function prepareConfigs {
+    info "preparing configs"
+
     if [[ -d $CONFIGS_DIR ]]
     then
         info "removing $CONFIGS_DIR folder"
@@ -262,6 +265,12 @@ function runGenesis {
       mkdir -p $AIRFLOW_PATH_PLUGIN || exit_on_error "ucpdev: failed to create '$AIRFLOW_PATH_PLUGIN'" $?
       mkdir -p $AIRFLOW_PATH_LOG || exit_on_error "ucpdev: failed to create '$AIRFLOW_PATH_LOG'" $?
     fi
+}
+
+function runGenesis {
+    info "running genesis"
+
+    prepareConfigs
 
     setupDocker
 
@@ -275,9 +284,37 @@ function runGenesis {
     cd ..
 
     # Setup kubeconfig
-    mkdir ~/.kube
-    cp -r /etc/kubernetes/admin/pki ~/.kube/pki
-    cat /etc/kubernetes/admin/kubeconfig.yaml | sed -e 's/\/etc\/kubernetes\/admin/./' > ~/.kube/config
+    mkdir $KUBE_CONFIG_DIR
+    cp -r /etc/kubernetes/admin/pki $KUBE_CONFIG_DIR/pki
+    cat /etc/kubernetes/admin/kubeconfig.yaml | sed -e 's/\/etc\/kubernetes\/admin/./' > $KUBE_CONFIG_DIR/config
+}
+
+function initHelm {
+    info "initializing Helm"
+
+    helm init
+}
+
+function deployUcp {
+    info "deploying UCP"
+
+    while [[ -z $(kubectl get pods -n kube-system | grep tiller | grep Running) ]]
+    do
+      echo 'Waiting for tiller to be ready.'
+      sleep 10
+    done
+
+    if [[ $PROXY_ENABLED == "true" ]]
+    then
+        docker run -e "http_proxy=$PROXY_ADDRESS" -e "https_proxy=$PROXY_ADDRESS" \
+                   -t -v ~/.kube:/armada/.kube \
+                   -v $(pwd):/target --net=host ${ARMADA_IMAGE} apply /target/${ARMADA_CONFIG} || exit_on_error "ucpdev: deployment failed" $?
+    else
+        docker run -t -v ~/.kube:/armada/.kube \
+                   -v $(pwd):/target --net=host ${ARMADA_IMAGE} apply /target/${ARMADA_CONFIG} || exit_on_error "ucpdev: deployment failed" $?
+    fi
+
+    echo 'UCP control plane deployed.'
 }
 
 # Make sure only root can deploy UCP
@@ -288,15 +325,19 @@ fi
 
 info "===== ~: $BASH_SOURCE :~ ====="
 
-upgradeUbuntu
+#upgradeUbuntu
 
-setHostsInfo
+#setHostsInfo
 
 initEnv
 
 validateEnv
 
 runGenesis
+
+initHelm
+
+deployUcp
 
 info "===== ~: $BASH_SOURCE - Successful :~ ===== "
 info ""
