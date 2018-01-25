@@ -28,7 +28,7 @@ function initEnv {
     info "setting required ENV vars"
 
     # cwd/pwd/configs
-    export CONFIGS_DIR="./configs"
+    export CONFIGS_DIR="$(pwd)/configs"
 
     # Setup environmental variables
     # with stable defaults
@@ -205,12 +205,12 @@ function generateCerts {
     then
         docker run -e "http_proxy=$PROXY_ADDRESS" -e "https_proxy=$PROXY_ADDRESS" \
                    --rm -t -w /target \
-                   -v $(pwd)/configs:/target ${PROMENADE_IMAGE} promenade generate-certs \
+                   -v $(pwd)/$CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade generate-certs \
                    -o /target $(ls $CONFIGS_DIR) || exit_on_error "ucpdev: Promenade certificate generation failed." $?
     else
         docker run \
                    --rm -t -w /target \
-                   -v $(pwd)/configs:/target ${PROMENADE_IMAGE} promenade generate-certs \
+                   -v $(pwd)/$CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade generate-certs \
                    -o /target $(ls $CONFIGS_DIR) || exit_on_error "ucpdev: Promenade certificate generation failed." $?
     fi
 }
@@ -223,13 +223,13 @@ function generateArtifacts {
     then
         docker run -e "http_proxy=$PROXY_ADDRESS" -e "https_proxy=$PROXY_ADDRESS" \
                    --rm -t -w /target \
-                   -v $(pwd)/configs:/target ${PROMENADE_IMAGE} promenade build-all \
+                   -v $(pwd)/$CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade build-all \
                    -o /target \
                    --validators $(ls $CONFIGS_DIR) || exit_on_error "ucpdev: Promenade artifacts generation failed." $?
     else
         docker run \
                --rm -t -w /target \
-               -v $(pwd)/configs:/target ${PROMENADE_IMAGE} promenade build-all \
+               -v $(pwd)/$CONFIGS_DIR:/target ${PROMENADE_IMAGE} promenade build-all \
                -o /target \
                --validators $(ls $CONFIGS_DIR) || exit_on_error "ucpdev: Promenade artifacts generation failed." $?
     fi
@@ -238,21 +238,22 @@ function generateArtifacts {
 function runGenesis {
     if [[ -d $CONFIGS_DIR ]]
     then
-        info "removing configs folder"
+        info "removing $CONFIGS_DIR folder"
         rm -rf $CONFIGS_DIR || exit_on_error "ucpdev: failed to remove '$CONFIGS_DIR'" $?
     fi
 
-    mkdir configs || exit_on_error "ucpdev: failed to create '$CONFIGS_DIR'" $?
+    mkdir $CONFIGS_DIR || exit_on_error "ucpdev: failed to create '$CONFIGS_DIR'" $?
+    chmod 777 $CONFIGS_DIR
 
-    cat joining-host-config.yaml.sub | envsubst > configs/joining-host-config.yaml
-    cat armada-resources.yaml.sub | envsubst > configs/armada-resources.yaml
+    cat joining-host-config.yaml.sub | envsubst > $CONFIGS_DIR/joining-host-config.yaml
+    cat armada-resources.yaml.sub | envsubst > $CONFIGS_DIR/armada-resources.yaml
     cat armada.yaml.sub | envsubst > ${ARMADA_CONFIG}
-    cat Genesis.yaml.sub | envsubst > configs/Genesis.yaml
-    cat HostSystem.yaml.sub | envsubst > configs/HostSystem.yaml
-    cp Kubelet.yaml.sub configs/Kubelet.yaml
-    cat KubernetesNetwork.yaml.sub | envsubst > configs/KubernetesNetwork.yaml
-    cp Docker.yaml configs/
-    cp ArmadaManifest.yaml configs/
+    cat Genesis.yaml.sub | envsubst > $CONFIGS_DIR/Genesis.yaml
+    cat HostSystem.yaml.sub | envsubst > $CONFIGS_DIR/HostSystem.yaml
+    cp Kubelet.yaml.sub $CONFIGS_DIR/Kubelet.yaml
+    cat KubernetesNetwork.yaml.sub | envsubst > $CONFIGS_DIR/KubernetesNetwork.yaml
+    cp Docker.yaml $CONFIGS_DIR/
+    cp ArmadaManifest.yaml $CONFIGS_DIR/
 
     # Support a custom deployment for shipyard developers
     if [[ $SHIPYARD_PROD_DEPLOY == 'false' ]]
@@ -269,7 +270,7 @@ function runGenesis {
     generateArtifacts
 
     # Do Promenade genesis process
-    cd configs
+    cd $CONFIGS_DIR
     . ${UP_SCRIPT_FILE} || exit_on_error "ucpdev: genesis process failed." $?
     cd ..
 
