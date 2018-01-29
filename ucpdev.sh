@@ -137,25 +137,17 @@ function validateEnv {
     info "validating required ENV vars"
 
     # Validate environment
-    if [[ $GENESIS_NODE_IP == "NA" || $MASTER_NODE_IP == "NA" ]]
-    then
-      exit_on_error "GENESIS_NODE_IP and MASTER_NODE_IP env vars must be set to correct IP addresses." $1
-    fi
+    [[ $GENESIS_NODE_IP == "NA" || $MASTER_NODE_IP == "NA" ]] \
+        && exit_on_error "GENESIS_NODE_IP and MASTER_NODE_IP env vars must be set to correct IP addresses." $1
 
-    if [[ $CEPH_CLUSTER_NET == "NA" || $CEPH_PUBLIC_NET == "NA" ]]
-    then
-      exit_on_error "CEPH_CLUSTER_NET and CEPH_PUBLIC_NET env vars must be set to correct IP subnet CIDRs." $1
-    fi
+    [[ $CEPH_CLUSTER_NET == "NA" || $CEPH_PUBLIC_NET == "NA" ]] \
+        && exit_on_error "CEPH_CLUSTER_NET and CEPH_PUBLIC_NET env vars must be set to correct IP subnet CIDRs." $1
 
-    if [[ $(hostname) != $GENESIS_NODE_NAME ]]
-    then
-      exit_on_error "Local node hostname $(hostname) does not match GENESIS_NODE_NAME $GENESIS_NODE_NAME." $1
-    fi
+    [[ $(hostname) != $GENESIS_NODE_NAME ]] \
+        && exit_on_error "Local node hostname $(hostname) does not match GENESIS_NODE_NAME $GENESIS_NODE_NAME." $1
 
-    if [[ -z $(grep $GENESIS_NODE_NAME /etc/hosts | grep $GENESIS_NODE_IP) ]]
-    then
-      exit_on_error "No /etc/hosts entry found for $GENESIS_NODE_NAME. Please add one." $1
-    fi
+    [[ -z $(grep $GENESIS_NODE_NAME /etc/hosts | grep $GENESIS_NODE_IP) ]] \
+        && exit_on_error "No /etc/hosts entry found for $GENESIS_NODE_NAME. Please add one." $1
 
     info "saving deployment environment to deploy-env.sh."
     env | xargs -n 1 -d '\n' echo "export" >> deploy-env.sh
@@ -176,7 +168,7 @@ function setupDocker {
 
     apt -qq update || exit_on_error "ucpdev: apt update for docker failed" $?
     apt -y install docker.io jq || exit_on_error "ucpdev: docker/jq installation failed" $?
-   
+
     if [[ $PROXY_ENABLED == "true" ]]
     then 
         info "setting proxy for docker"
@@ -250,7 +242,7 @@ function prepareConfigs {
     cat Genesis.yaml.sub | envsubst > $CONFIGS_DIR/Genesis.yaml
     cat HostSystem.yaml.sub | envsubst > $CONFIGS_DIR/HostSystem.yaml
     cp Kubelet.yaml.sub $CONFIGS_DIR/Kubelet.yaml
-    cat KubernetesNetwork.yaml.sub | envsubst > $CONFIGS_DIR/KubernetesNetwork.yaml
+    cat $K8S_NETWORK_YAML | envsubst > $CONFIGS_DIR/KubernetesNetwork.yaml
     cp Docker.yaml $CONFIGS_DIR/
     cp ArmadaManifest.yaml $CONFIGS_DIR/
 
@@ -266,28 +258,19 @@ function prepareConfigs {
 function runGenesis {
     info "running genesis"
 
-    if [[ $FORCE_DEPLOY || $SKIP_CONFIG_PREPARE -ne 1 ]]
-    then
-        prepareConfigs
-    fi
+    [[ $FORCE_DEPLOY || $SKIP_CONFIG_PREPARE -ne 1 ]] && prepareConfigs
 
-    if [[ $FORCE_DEPLOY || $SKIP_DOCKER -ne 1 ]]
-    then
-        setupDocker
-    fi
+    [[ $FORCE_DEPLOY || $SKIP_DOCKER -ne 1 ]] && setupDocker
 
-    if [[ $FORCE_DEPLOY || $SKIP_CERTS -ne 1 ]]
-    then
-        generateCerts
-    fi
+    [[ $FORCE_DEPLOY || $SKIP_CERTS -ne 1 ]] && generateCerts
 
-    if [[ $FORCE_DEPLOY || $SKIP_ARTIFACTS -ne 1 ]]
-    then
-        generateArtifacts
-    fi
+    [[ $FORCE_DEPLOY || $SKIP_ARTIFACTS -ne 1 ]] && generateArtifacts
 
-    # Do Promenade genesis process
-    . $CONFIGS_DIR/genesis.sh || exit_on_error "ucpdev: genesis process failed." $?
+    if [[ $FORCE_DEPLOY || $SKIP_GENESIS -ne 1 ]]
+    then
+        # Do Promenade genesis process
+        . $CONFIGS_DIR/genesis.sh || exit_on_error "ucpdev: genesis process failed." $?
+    fi
 
     # Setup kubeconfig
     mkdir $KUBE_CONFIG_DIR
@@ -324,36 +307,21 @@ function deployUcp {
 }
 
 # Make sure only root can deploy UCP
-if [ "$(id -u)" != "0" ]
-then
-   exit_on_error "ucpdev: This script must be run as root" 1
-fi
+[[ "$(id -u)" != "0" ]] && exit_on_error "ucpdev: This script must be run as root" 1
 
 info "===== ~: $BASH_SOURCE :~ ====="
 
-if [[ $FORCE_DEPLOY || $SKIP_OS_UPGRADE -ne 1 ]]
-then
-    upgradeUbuntu
-fi
+[[ $FORCE_DEPLOY || $SKIP_OS_UPGRADE -ne 1 ]] && upgradeUbuntu
 
-if [[ $FORCE_DEPLOY || $SKIP_ETC_HOSTS -ne 1 ]]
-then
-    setHostsInfo
-fi
+[[ $FORCE_DEPLOY || $SKIP_ETC_HOSTS -ne 1 ]] && setHostsInfo
 
 initEnv
 
 validateEnv
 
-if [[ $FORCE_DEPLOY || $SKIP_GENESIS -ne 1 ]]
-then
-    runGenesis
-fi
+[[ $FORCE_DEPLOY || $SKIP_RUN_GENESIS -ne 1 ]] && runGenesis
 
-if [[ $FORCE_DEPLOY || $SKIP_HELM_INIT -ne 1 ]]
-then
-    initHelm
-fi
+[[ $FORCE_DEPLOY || $SKIP_HELM_INIT -ne 1 ]] && initHelm
 
 deployUcp
 
