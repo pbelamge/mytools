@@ -92,6 +92,9 @@ function initEnv {
     export DIVINGBELL_CHART_REPO=${DIVINGBELL_CHART_REPO:-"https://github.com/att-comdev/divingbell"}
     export DIVINGBELL_CHART_PATH=${DIVINGBELL_CHART_PATH:-"divingbell"}
     export DIVINGBELL_CHART_BRANCH=${DIVINGBELL_CHART_BRANCH:-"master"}
+    export TILLER_CHART_REPO=${TILLER_CHART_REPO:-"https://github.com/att-comdev/armada"}
+    export TILLER_CHART_PATH=${TILLER_CHART_PATH:-"charts/tiller"}
+    export TILLER_CHART_BRANCH=${TILLER_CHART_BRANCH:-"master"}
 
     #Kubernetes artifacts
     export KUBE_PROXY_IMAGE=${KUBE_PROXY_IMAGE:-"gcr.io/google_containers/hyperkube-amd64:v1.8.6"}
@@ -173,7 +176,7 @@ function setupDocker {
     then 
         info "setting proxy for docker"
     	export DOCKER_SVCD="/etc/systemd/system/docker.service.d"
-	mkdir $DOCKER_SVCD || exit_on_error "ucpdev: failed to create '$DOCKER_SVCD'" $?
+	mkdir $DOCKER_SVCD || error "ucpdev: failed to create '$DOCKER_SVCD'" $?
 	
 	echo "[Service]" | tee $DOCKER_SVCD/http-proxy.conf
 	echo "Environment=\"HTTP_PROXY=$PROXY_ADDRESS\"" | tee -a $DOCKER_SVCD/http-proxy.conf
