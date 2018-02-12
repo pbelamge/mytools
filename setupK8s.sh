@@ -25,8 +25,7 @@ function exit_on_error {
 function initEnv {
     export DOCKER_SVCD="/etc/systemd/system/docker.service.d"
     export K8SCONF="/etc/kubernetes/admin.conf"
-    export NETCONF="https://docs.projectcalico.org/v2.6/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml"
-    export KUBE_CONFIG_DIR="$HOME/.kube"
+    export NETCONF="$KUBE_NET_CONF"
 }
 
 function upgradeUbuntu {
@@ -56,6 +55,11 @@ function setupDocker {
     fi
 }
 
+function installK8s {
+    info "instaling k8s packages"
+    . installK8s.sh || exit_on_error "$BASH_SOURCE: kubernetes installation failed!!" $?
+}
+
 function kubeInit {
     info "initializing k8s"
     . kubeInit.sh || exit_on_error "$BASH_SOURCE: kubernetes initialization failed!!" $?
@@ -74,7 +78,7 @@ initEnv
 
 [[ $FORCE_DEPLOY || $SKIP_DOCKER -ne 1 ]] && setupDocker
 
-. installK8s.sh || exit_on_error "$BASH_SOURCE: kubernetes installation failed!!" $?
+[[ $FORCE_DEPLOY || $SKIP_K8S_INSTALL -ne 1 ]] && installK8s
 
 [[ $FORCE_DEPLOY || $KUBE_INIT_ENABLE -eq 1 ]] && kubeInit
 
