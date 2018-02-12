@@ -56,6 +56,16 @@ function setupDocker {
     fi
 }
 
+function kubeInit {
+    info "initializing k8s"
+    . kubeInit.sh || exit_on_error "$BASH_SOURCE: kubernetes initialization failed!!" $?
+}
+
+function kubeJoin {
+    info "joining k8s cluster nodes"
+    . kubeJoin.sh || exit_on_error "$BASH_SOURCE: kubernetes initialization failed!!" $?
+}
+
 info "===== ~: $BASH_SOURCE :~ ====="
 
 [[ $FORCE_DEPLOY || $OS_UPGRADE -eq 1 ]] && upgradeUbuntu
@@ -66,7 +76,9 @@ initEnv
 
 . installK8s.sh || exit_on_error "$BASH_SOURCE: kubernetes installation failed!!" $?
 
-. kubeInit.sh || exit_on_error "$BASH_SOURCE: kubernetes initialization failed!!" $?
+[[ $FORCE_DEPLOY || $KUBE_INIT_ENABLE -eq 1 ]] && kubeInit
+
+[[ $FORCE_DEPLOY || $KUBE_JOIN_NODE -eq 1 ]] && kubeJoin
 
 info "===== ~: $BASH_SOURCE - Successful :~ ====="
 info ""

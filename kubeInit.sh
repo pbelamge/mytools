@@ -1,14 +1,12 @@
 #!/bin/bash
 info "===== ~: $BASH_SOURCE :~ ====="
 
+POD_NET_CIDR="--pod-network-cidr=$KUBE_POD_CIDR"
+API_SRVR_ADV_ADDR="--apiserver-advertise-address=$NODE_IP"
+SVC_CIDR="--service-cidr=$KUBE_SVC_CIDR"
+
 info "initializing kubeadm"
-sudo -E kubeadm init --pod-network-cidr=192.168.0.0/16 --apiserver-advertise-address=$NODE_IP --service-cidr=10.96.0.0/16 \
-        || exit_on_error "$BASH_SOURCE: k8s init failed!!" $?
-RETVAL=$?
-if [ $RETVAL -ne 0 ]; then
-    info "kube init failed"
-    exit 1
-fi
+sudo -E kubeadm init $POD_NET_CIDR $API_SRVR_ADV_ADDR $SVC_CIDR || exit_on_error "$BASH_SOURCE: k8s init failed!!" $?
 
 info "update local .kube configs"
 [[ ! -d $KUBE_CONFIG_DIR ]] || mkdir -p $KUBE_CONFIG_DIR
