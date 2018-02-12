@@ -1,0 +1,76 @@
+#!/bin/bash
+
+DATE='date +%Y%m%d:%H%M%S'
+APP_NAME=${APP_NAME}
+LOG="$APP_NAME.log"
+PROGNAME=`basename "$0"`
+
+function log {
+    echo `$DATE`"$1" >> $LOG
+}
+
+function info {
+    log " INFO: $1"
+}
+
+function error {
+    log " ERROR: $1"
+}
+
+function exit_on_error {
+    echo `$DATE`" FATAL: $1" 1>&2
+    exit $2
+}
+
+function setHostsInfo {
+    info "setting hosts info"
+    . setHostsInfo.sh || exit_on_error "$BASH_SOURCE: hosts/name update failed" $?
+}
+
+function upgradeUbuntu {
+    info "upgrading ubuntu os"
+    . upgradeUbuntu.sh || exit_on_error "$BASH_SOURCE: ubuntu os upgradation failed" $?
+}
+
+# Make sure only root can deploy UCP
+#[[ "$(id -u)" != "0" ]] && exit_on_error "$BASH_SOURCE: This script must be run as root" 1
+
+info "===== ~: $BASH_SOURCE :~ ====="
+
+[[ $FORCE_DEPLOY || $OS_UPGRADE -eq 1 ]] && upgradeUbuntu
+
+info "~: Envs Set :~"
+info "IP: "$NODE_IP
+info "Domain: "$NODE_DOM
+info "Sub-Domain: "$NODE_NAME
+info "Proxy: "$PROXY_ADDRESS
+info "No-proxy: "$NOPROXY_ADDRESS
+info "~: Done :~"
+
+if [ -f ~/.devopsrc ]; then
+   info "removing old devopsrc"
+   rm ~/.devopsrc
+fi
+
+info "copying new devopsrc"
+cp devopsrc ~/.devopsrc
+
+if [ -f ~/.proxyrc ]; then
+   info "removing old proxyrc"
+   rm ~/.proxyrc
+fi
+
+echo "export http_proxy=$PROXY_ADDRESS" | tee ~/.proxyrc
+echo "export https_proxy=$PROXY_ADDRESS" | tee -a ~/.proxyrc
+echo "export no_proxy='$NOPROXY_ADDRESS'" | tee -a ~/.proxyrc
+
+info "copying custom bashrc"
+cp bashrc ~/.bashrc
+
+[[ $FORCE_DEPLOY || $SKIP_ETC_HOSTS -ne 1 ]] && setHostsInfo
+
+info "===== ~: $BASH_SOURCE - Successful :~ ===== "
+info ""
+
+echo "rebooting..."
+sudo reboot

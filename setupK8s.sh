@@ -37,7 +37,7 @@ function upgradeUbuntu {
 function setupDocker {
     info "installing docker and jq packages"
 
-    sudo -E apt -qq update || exit_on_error "$BASH_SOURCE: apt update for docker failed" $?
+    sudo -E apt update || exit_on_error "$BASH_SOURCE: apt update for docker failed" $?
     sudo -E apt -y install docker.io || exit_on_error "$BASH_SOURCE: docker installation failed" $?
 
     if [[ $PROXY_ENABLED == "true" ]]
@@ -48,7 +48,7 @@ function setupDocker {
         echo "[Service]" | sudo tee $DOCKER_SVCD/http-proxy.conf
         echo "Environment=\"HTTP_PROXY=$PROXY_ADDRESS\"" | sudo tee -a $DOCKER_SVCD/http-proxy.conf
         echo "Environment=\"HTTPS_PROXY=$PROXY_ADDRESS\"" | sudo tee -a $DOCKER_SVCD/http-proxy.conf
-        echo "Environment=\"NO_PROXY=127.0.0.1,localhost,$NODE_NAME\"" | sudo tee -a $DOCKER_SVCD/http-proxy.conf
+        echo "Environment=\"NO_PROXY=$NOPROXY_ADDRESS\"" | sudo tee -a $DOCKER_SVCD/http-proxy.conf
 
         sudo systemctl daemon-reload
         sudo systemctl show --property Environment docker
