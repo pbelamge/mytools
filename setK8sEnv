@@ -1,0 +1,16 @@
+#!/bin/bash
+
+export APP_NAME="k8s"
+export NODE_IP="172.16.100.20"
+export NODE_DOM="kmaster.pbdevops.com"
+export NODE_NAME="kmaster"
+export PROXY_ENABLED="true"
+
+export http_proxy=""
+export https_proxy=""
+export no_proxy=""
+export HTTP_PROXY=""
+export HTTPS_PROXY=""
+export NO_PROXY=""
+
+[[ $PROXY_ENABLED == "true" ]] && . setProxy
