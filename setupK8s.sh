@@ -57,7 +57,7 @@ function setupDocker {
     if [[ $PROXY_ENABLED == "true" ]]
     then
         info "setting proxy for docker"
-        [[ ! -d $DOCKER_DIR ]] || sudo mkdir -p $DOCKER_SVCD
+        [[ ! -d $DOCKER_SVCD ]] && sudo mkdir -p $DOCKER_SVCD
 
         echo "[Service]" | sudo tee $DOCKER_SVCD/http-proxy.conf
         echo "Environment=\"HTTP_PROXY=$PROXY_ADDRESS\"" | sudo tee -a $DOCKER_SVCD/http-proxy.conf
