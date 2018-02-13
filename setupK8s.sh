@@ -116,13 +116,29 @@ function disableSwap {
 
 function kubeInit {
     info "initializing k8s"
+
     disableSwap
-    . kubeInit.sh || exit_on_error "$BASH_SOURCE: kubernetes initialization failed!!" $?
+    
+    POD_NET_CIDR="--pod-network-cidr=$KUBE_POD_CIDR"
+    API_SRVR_ADV_ADDR="--apiserver-advertise-address=$NODE_IP"
+    SVC_CIDR="--service-cidr=$KUBE_SVC_CIDR"
+
+    sudo -E kubeadm init $POD_NET_CIDR $API_SRVR_ADV_ADDR $SVC_CIDR || exit_on_error "$BASH_SOURCE: k8s init failed!!" $?
+
+    info "update local .kube configs"
+    [[ ! -d $KUBE_CONFIG_DIR ]] && mkdir -p $KUBE_CONFIG_DIR
+    sudo cp -i $K8SCONF $KUBE_CONFIG_DIR/config
+    sudo chown $(id -u):$(id -g) $KUBE_CONFIG_DIR/config
+
+    info "apply net config"
+    kubectl apply -f $NETCONF || exit_on_error "$BASH_SOURCE: k8s net-conf apply failed!!" $?
 }
 
 function kubeJoin {
     info "joining k8s cluster nodes"
+
     disableSwap
+
     sudo -E kubeadm join $KUBE_JOIN_PARAM || exit_on_error "$BASH_SOURCE: k8s init failed!!" $?
 }
 
@@ -138,9 +154,9 @@ validateEnv
 
 [[ $FORCE_DEPLOY || $SKIP_K8S_INSTALL -ne 1 ]] && installK8s
 
-[[ $FORCE_DEPLOY || $KUBE_INIT_ENABLE -eq 1 ]] && kubeInit
+[[ $KUBE_INIT_ENABLE -eq 1 && $KUBE_JOIN_NODE -ne 1 ]] && kubeInit
 
-[[ $FORCE_DEPLOY || $KUBE_JOIN_NODE -eq 1 ]] && kubeJoin
+[[ $KUBE_JOIN_NODE -eq 1 && $KUBE_INIT_ENABLE -ne 1 ]] && kubeJoin
 
 info "===== ~: $BASH_SOURCE - Successful :~ ====="
 info ""

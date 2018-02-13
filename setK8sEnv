@@ -1,17 +1,17 @@
 #!/bin/bash
 
 export KUBE_CONFIG_DIR="$HOME/.kube"
-export KUBE_JOIN_PARAM="--token 0b0b13.b34b7117d4884bb0 172.16.100.20:6443 --discovery-token-ca-cert-hash sha256:4db0f3fd18d3a915f0788f0e40289ffe2382ddeca91617b3069df6f030ff6fd1"
+export KUBE_JOIN_PARAM=""
 export KUBE_POD_CIDR="192.168.0.0/16"
 export KUBE_SVC_CIDR="10.96.0.0/16"
 export KUBE_NET_CONF="https://docs.projectcalico.org/v2.6/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml"
 export APP_NAME="k8s"
-export MASTER_IP="172.16.100.20"
-export NODE_IP="172.16.100.21"
+export MASTER_IP=""
+export NODE_IP=""
 export NODE_MASK="255.255.255.0"
-export NODE_DOM="knode1.com"
-export NODE_NAME="knode1"
-export PROXY_ENABLED="true"
+export NODE_DOM=""
+export NODE_NAME=""
+export PROXY_ENABLED=""
 
 export http_proxy=""
 export https_proxy=""
