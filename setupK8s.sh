@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATE='date +%Y%m%d:%H%M%S'
-APP_NAME=${APP_NAME}
+APP_NAME=${APP_NAME:-$BASH_SOURCE}
 LOG="$APP_NAME.log"
 PROGNAME=`basename "$0"`
 
@@ -23,9 +23,24 @@ function exit_on_error {
 }
 
 function initEnv {
+    info "initializing env"
+
     export DOCKER_SVCD="/etc/systemd/system/docker.service.d"
     export K8SCONF="/etc/kubernetes/admin.conf"
     export NETCONF="$KUBE_NET_CONF"
+    export NODE_IP=${NODE_IP:-"NA"}
+    export NODE_MASK=${NODE_MASK:-"NA"}
+    export NODE_DOM=${NODE_DOM:-"NA"}
+    export NODE_NAME=${NODE_NAME:-"NA"}
+    export PROXY_ENABLED=${PROXY_ENABLED:-"false"}
+}
+
+function validateEnv {
+    info "validating env"
+    [[ $NODE_IP == "NA" ]] && exit_on_error "NODE_IP env var must be set to correct value." $1
+
+    [[ $NODE_DOM == "NA" || $NODE_NAME == "NA" ]] \
+        && exit_on_error "NODE_DOM and NODE_NAME env vars must be set to correct values." $1
 }
 
 function upgradeUbuntu {
@@ -75,6 +90,8 @@ info "===== ~: $BASH_SOURCE :~ ====="
 [[ $FORCE_DEPLOY || $OS_UPGRADE -eq 1 ]] && upgradeUbuntu
 
 initEnv
+
+validateEnv
 
 [[ $FORCE_DEPLOY || $SKIP_DOCKER -ne 1 ]] && setupDocker
 
