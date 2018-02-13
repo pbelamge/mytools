@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 DATE='date +%Y%m%d:%H%M%S'
 APP_NAME=${APP_NAME:-$BASH_SOURCE}
 LOG="$APP_NAME.log"
@@ -27,15 +29,25 @@ function initEnv {
 
     export DOCKER_SVCD="/etc/systemd/system/docker.service.d"
     export K8SCONF="/etc/kubernetes/admin.conf"
+    export KUBE_JOIN_PARAM=${KUBE_JOIN_PARAM:-"NA"}
     export NETCONF="$KUBE_NET_CONF"
     export NODE_IP=${NODE_IP:-"NA"}
+    export MASTER_IP=${MASTER_IP:-"NA"}
     export NODE_MASK=${NODE_MASK:-"NA"}
     export NODE_DOM=${NODE_DOM:-"NA"}
     export NODE_NAME=${NODE_NAME:-"NA"}
     export PROXY_ENABLED=${PROXY_ENABLED:-"false"}
     if [[ $PROXY_ENABLED == "true" ]]
     then
-        export NOPROXY_ADDRESS="$NODE_IP,$KUBE_POD_CIDR,$KUBE_SVC_CIDR,$NOPROXY_ADDRESS,$NODE_NAME"
+        if [[ $NODE_IP == $MASTER_IP ]]
+        then
+            export NOPROXY_ADDRESS="$NODE_IP,$KUBE_POD_CIDR,$KUBE_SVC_CIDR,$NOPROXY_ADDRESS,$NODE_NAME"
+        elif [[ $MASTER_IP != "NA" ]]
+        then
+            export NOPROXY_ADDRESS="$MASTER_IP,$NODE_IP,$KUBE_POD_CIDR,$KUBE_SVC_CIDR,$NOPROXY_ADDRESS,$NODE_NAME"
+        else
+            exit_on_error "MASTER_IP env must be set for kube join!!" 5
+        fi
         export no_proxy=$NOPROXY_ADDRESS
         export NO_PROXY=$NOPROXY_ADDRESS
     fi
@@ -47,6 +59,8 @@ function validateEnv {
 
     [[ $NODE_DOM == "NA" || $NODE_NAME == "NA" ]] \
         && exit_on_error "NODE_DOM and NODE_NAME env vars must be set to correct values." $1
+
+    [[ $KUBE_JOIN_PARAM == "NA" ]] && exit_on_error "KUBE_JOIN_PARAM env var must be set to correct value." $1
 }
 
 function upgradeUbuntu {
@@ -108,7 +122,8 @@ function kubeInit {
 
 function kubeJoin {
     info "joining k8s cluster nodes"
-    . kubeJoin.sh || exit_on_error "$BASH_SOURCE: kubernetes initialization failed!!" $?
+    disableSwap
+    sudo -E kubeadm join $KUBE_JOIN_PARAM || exit_on_error "$BASH_SOURCE: k8s init failed!!" $?
 }
 
 info "===== ~: $BASH_SOURCE :~ ====="
