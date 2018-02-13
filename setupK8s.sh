@@ -33,6 +33,12 @@ function initEnv {
     export NODE_DOM=${NODE_DOM:-"NA"}
     export NODE_NAME=${NODE_NAME:-"NA"}
     export PROXY_ENABLED=${PROXY_ENABLED:-"false"}
+    if [[ $PROXY_ENABLED == "true" ]]
+    then
+        export NOPROXY_ADDRESS="$NODE_IP,$KUBE_POD_CIDR,$KUBE_SVC_CIDR,$NOPROXY_ADDRESS,$NODE_NAME"
+        export no_proxy=$NOPROXY_ADDRESS
+        export NO_PROXY=$NOPROXY_ADDRESS
+    fi
 }
 
 function validateEnv {
@@ -75,8 +81,28 @@ function installK8s {
     . installK8s.sh || exit_on_error "$BASH_SOURCE: kubernetes installation failed!!" $?
 }
 
+function disableSwap {
+    info "disabling swap"
+
+    sudo grep -n 'fail-swap-on=false' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+    if [[ $? -ne 0 ]]
+    then
+        info "disable swap"
+        echo "Environment=\"KUBELET_EXTRA_ARGS=--fail-swap-on=false\"" | sudo tee -a /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+    fi
+
+    sudo swapoff -a
+
+    info "reloading daemon"
+    sudo systemctl daemon-reload
+
+    info "restarting docker service"
+    sudo systemctl restart kubelet
+}
+
 function kubeInit {
     info "initializing k8s"
+    disableSwap
     . kubeInit.sh || exit_on_error "$BASH_SOURCE: kubernetes initialization failed!!" $?
 }
 
