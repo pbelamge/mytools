@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATE='date +%Y%m%d:%H%M%S'
-APP_NAME=${APP_NAME}
+APP_NAME=${APP_NAME:-$BASH_SOURCE}
 LOG="$APP_NAME.log"
 PROGNAME=`basename "$0"`
 
@@ -22,6 +22,24 @@ function exit_on_error {
     exit $2
 }
 
+function initEnv {
+    info "initializing env"
+    export NODE_IP=${NODE_IP:-"NA"}
+    export NODE_MASK=${NODE_MASK:-"NA"}
+    export NODE_DOM=${NODE_DOM:-"NA"}
+    export NODE_NAME=${NODE_NAME:-"NA"}
+    export PROXY_ENABLED=${PROXY_ENABLED:-"false"}
+}
+
+function validateEnv {
+    info "validating env"
+    [[ $NODE_IP == "NA" || $NODE_MASK == "NA" ]] \
+        && exit_on_error "NODE_IP and NODE_MASK env vars must be set to correct values." $1
+
+    [[ $NODE_DOM == "NA" || $NODE_NAME == "NA" ]] \
+        && exit_on_error "NODE_DOM and NODE_NAME env vars must be set to correct values." $1
+}
+
 function setIfConfig {
     info "setting static ip"
     grep -n "$NODE_IP" /etc/network/interfaces
@@ -29,7 +47,7 @@ function setIfConfig {
     then
         sudo sed -i 's/enp0s8 inet dhcp/enp0s8 inet static/g' /etc/network/interfaces
         echo "	address $NODE_IP" | sudo tee -a /etc/network/interfaces
-        echo "  netmask $NODE_MASK" | sudo tee -a /etc/network/interfaces
+        echo "	netmask $NODE_MASK" | sudo tee -a /etc/network/interfaces
     fi
 }
 
@@ -48,12 +66,16 @@ function upgradeUbuntu {
 
 info "===== ~: $BASH_SOURCE :~ ====="
 
+initEnv
+
+validateEnv
+
 info "~: Envs Set :~"
 info "IP: "$NODE_IP
 info "Domain: "$NODE_DOM
 info "Sub-Domain: "$NODE_NAME
-info "Proxy: "$PROXY_ADDRESS
-info "No-proxy: "$NOPROXY_ADDRESS
+[[ $PROXY_ENABLED == "true" ]] && info "Proxy: "$PROXY_ADDRESS
+[[ $PROXY_ENABLED == "true" ]] && info "No-proxy: "$NOPROXY_ADDRESS
 info "~: Done :~"
 
 if [ -f ~/.devopsrc ]; then
@@ -69,9 +91,12 @@ if [ -f ~/.proxyrc ]; then
    rm ~/.proxyrc
 fi
 
-echo "export http_proxy=$PROXY_ADDRESS" | tee ~/.proxyrc
-echo "export https_proxy=$PROXY_ADDRESS" | tee -a ~/.proxyrc
-echo "export no_proxy='$NOPROXY_ADDRESS'" | tee -a ~/.proxyrc
+if [[ $PROXY_ENABLED == "true" ]]
+then
+    echo "export http_proxy=$PROXY_ADDRESS" | tee ~/.proxyrc
+    echo "export https_proxy=$PROXY_ADDRESS" | tee -a ~/.proxyrc
+    echo "export no_proxy='$NOPROXY_ADDRESS'" | tee -a ~/.proxyrc
+fi
 
 info "copying custom bashrc"
 cp bashrc ~/.bashrc
